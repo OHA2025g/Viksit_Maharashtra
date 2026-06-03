@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { getWebSocketEventsUrl } from "@/lib/runtimeConfig";
 
 /**
  * Connects to backend WebSocket and pushes events to subscribers.
@@ -11,9 +12,7 @@ export function useNotificationStream(onEvent) {
   handlerRef.current = onEvent;
 
   useEffect(() => {
-    const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || "";
-    // Convert http/https to ws/wss
-    const wsUrl = BACKEND_URL.replace(/^http/, "ws") + "/api/ws/events";
+    const wsUrl = getWebSocketEventsUrl();
 
     let stopped = false;
     let retry = null;

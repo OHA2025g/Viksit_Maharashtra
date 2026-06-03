@@ -14,7 +14,6 @@ COPY package.json yarn.lock ./
 RUN yarn install --frozen-lockfile
 
 COPY . .
-ARG GIT_SHA=dev
 RUN printf '%s\n' "$GIT_SHA" > public/build-id.txt
 RUN yarn build
 

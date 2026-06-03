@@ -1,11 +1,15 @@
 import axios from "axios";
 import { getApiBase } from "./runtimeConfig";
 
-export const API = getApiBase();
+/** Resolved on each request so runtime-config.js is applied after page load. */
+export function getAPI() {
+  return getApiBase();
+}
 
-export const api = axios.create({ baseURL: API });
+export const api = axios.create();
 
 api.interceptors.request.use((config) => {
+  config.baseURL = getApiBase();
   const token = localStorage.getItem("vm2047_token");
   if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;

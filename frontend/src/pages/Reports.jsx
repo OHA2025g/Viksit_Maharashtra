@@ -3,7 +3,7 @@ import { PageHeader, SectionCard } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { FileText, Download, FileSpreadsheet, FileBarChart, ListTodo } from "lucide-react";
 import { toast } from "sonner";
-import { api, API } from "@/lib/api";
+import { api, getAPI } from "@/lib/api";
 import { Link } from "react-router-dom";
 import { RAGBadge } from "@/components/RAGBadge";
 import { useI18n } from "@/contexts/I18nContext";
@@ -58,11 +58,11 @@ export default function Reports() {
     const ext = fmt;
     try {
       if (report.agri) {
-        let url = `${API}/reports/agri/${report.dataset}/export?format=${fmt}`;
+        let url = `${getAPI()}/reports/agri/${report.dataset}/export?format=${fmt}`;
         if (report.filter?.rag?.length) url += `&rag=${report.filter.rag.join(",")}`;
         await downloadBlob(url, `${title.replace(/\s+/g, "_")}.${ext}`);
       } else if (report.slug) {
-        await downloadBlob(`${API}/reports/${report.slug}/export?format=${fmt}`, `${title.replace(/\s+/g, "_")}.${ext}`);
+        await downloadBlob(`${getAPI()}/reports/${report.slug}/export?format=${fmt}`, `${title.replace(/\s+/g, "_")}.${ext}`);
       } else {
         toast.error(t("report.exportNotConfigured"));
         return;

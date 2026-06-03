@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { api, API } from "@/lib/api";
+import { api, getAPI } from "@/lib/api";
 import { PageHeader, SectionCard } from "@/components/PageHeader";
 import { DataTable, THead, Th, Td } from "@/components/DataTable";
 import { Button } from "@/components/ui/button";
@@ -33,7 +33,7 @@ export default function AgriImport() {
       const fd = new FormData();
       fd.append("file", file);
       const token = localStorage.getItem("vm2047_token");
-      const res = await fetch(`${API}/agriculture/import/preview`, {
+      const res = await fetch(`${getAPI()}/agriculture/import/preview`, {
         method: "POST",
         body: fd,
         headers: token ? { Authorization: `Bearer ${token}` } : {},

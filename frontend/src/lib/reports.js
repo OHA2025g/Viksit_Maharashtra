@@ -1,4 +1,4 @@
-import { API } from "@/lib/api";
+import { getAPI } from "@/lib/api";
 
 export const REPORT_SLUGS = {
   "Vision 2047 Executive Summary": "executive-summary",
@@ -43,7 +43,7 @@ export async function downloadReport(title, format = "csv") {
   const id = REPORT_SLUGS[title] || "executive-summary";
   const ext = format === "xlsx" ? "xlsx" : format === "pdf" ? "pdf" : "csv";
   await downloadBlob(
-    `${API}/reports/${id}/export?format=${format}`,
+    `${getAPI()}/reports/${id}/export?format=${format}`,
     `${title.replace(/\s+/g, "_")}.${ext}`,
   );
 }
@@ -52,7 +52,7 @@ export async function downloadAgriReport(title, format = "csv", ragFilter) {
   const dataset = AGRI_REPORT_DATASETS[title];
   if (!dataset) throw new Error("Unknown agriculture report");
   const ext = format === "xlsx" ? "xlsx" : format === "pdf" ? "pdf" : "csv";
-  let url = `${API}/reports/agri/${dataset}/export?format=${format}`;
+  let url = `${getAPI()}/reports/agri/${dataset}/export?format=${format}`;
   if (ragFilter?.length) url += `&rag=${ragFilter.join(",")}`;
   await downloadBlob(url, `${title.replace(/\s+/g, "_")}.${ext}`);
 }

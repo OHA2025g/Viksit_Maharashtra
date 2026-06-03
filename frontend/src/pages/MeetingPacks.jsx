@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { api, API } from "@/lib/api";
+import { api, getAPI } from "@/lib/api";
 import { PageHeader, SectionCard } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -33,7 +33,7 @@ export default function MeetingPacks() {
     setExporting(format);
     try {
       const token = localStorage.getItem("vm2047_token");
-      const res = await fetch(`${API}/meeting-packs/${packSlug}/export?format=${format}`, {
+      const res = await fetch(`${getAPI()}/meeting-packs/${packSlug}/export?format=${format}`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       if (!res.ok) throw new Error(`Export failed (${res.status})`);

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Search, Bell, ChevronDown, LogOut, Calendar, Menu, Wifi, WifiOff, Languages, Contrast } from "lucide-react";
 import { useApp, ROLES } from "@/contexts/AppContext";
-import { api } from "@/lib/api";
+import { api, asArray } from "@/lib/api";
 import { useI18n } from "@/contexts/I18nContext";
 import { useA11y } from "@/contexts/A11yContext";
 import {
@@ -27,8 +27,14 @@ export default function Topbar({ onOpenMenu }) {
   const nav = useNavigate();
 
   const loadNotifs = () => {
-    api.get("/notifications").then(({ data }) => setNotifs(data || [])).catch(() => {});
-    api.get("/alerts/smart").then(({ data }) => setSmartAlerts(data?.alerts || data || [])).catch(() => {});
+    api
+      .get("/notifications")
+      .then(({ data }) => setNotifs(asArray(data)))
+      .catch(() => setNotifs([]));
+    api
+      .get("/alerts/smart")
+      .then(({ data }) => setSmartAlerts(asArray(data, ["alerts"])))
+      .catch(() => setSmartAlerts([]));
   };
 
   useEffect(() => { loadNotifs(); }, []);
@@ -57,11 +63,13 @@ export default function Topbar({ onOpenMenu }) {
     if (q.trim()) nav(`/milestones?search=${encodeURIComponent(q)}`);
   };
 
-  const unread = notifs.filter((n) => !n.read).length;
-  const smartUnread = smartAlerts.filter((a) => !a.read).length;
+  const notifList = asArray(notifs);
+  const alertList = asArray(smartAlerts);
+  const unread = notifList.filter((n) => !n.read).length;
+  const smartUnread = alertList.filter((a) => !a.read).length;
   const combinedAlerts = [
-    ...smartAlerts.map((a) => ({ ...a, smart: true })),
-    ...notifs.map((n) => ({ ...n, smart: false })),
+    ...alertList.map((a) => ({ ...a, smart: true })),
+    ...notifList.map((n) => ({ ...n, smart: false })),
   ].slice(0, 40);
   const totalUnread = unread + smartUnread;
 
@@ -158,7 +166,7 @@ export default function Topbar({ onOpenMenu }) {
           <PopoverContent align="end" className="w-96 p-0 max-w-[calc(100vw-1rem)]">
             <div className="px-4 py-3 border-b border-slate-200">
               <h4 className="font-semibold text-sm">Notifications & Alerts</h4>
-              <p className="text-xs text-slate-500">{totalUnread} unread · {smartAlerts.length} smart alerts · {liveCount} live events</p>
+              <p className="text-xs text-slate-500">{totalUnread} unread · {alertList.length} smart alerts · {liveCount} live events</p>
             </div>
             <div className="max-h-96 overflow-y-auto">
               {combinedAlerts.length === 0 && <div className="p-6 text-sm text-slate-500 text-center">No notifications</div>}

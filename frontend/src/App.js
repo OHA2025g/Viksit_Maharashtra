@@ -23,6 +23,7 @@ import Milestones from "@/pages/Milestones";
 import KPIs from "@/pages/KPIs";
 import KPIDetail from "@/pages/KPIDetail";
 import Departments from "@/pages/Departments";
+import DepartmentDetail from "@/pages/DepartmentDetail";
 import Districts from "@/pages/Districts";
 import Budget from "@/pages/Budget";
 import Evidence from "@/pages/Evidence";
@@ -69,6 +70,7 @@ function AppRoutes() {
       <Route path="/kpis" element={<PrivateRoute><KPIs /></PrivateRoute>} />
       <Route path="/kpis/:kpiId" element={<PrivateRoute><KPIDetail /></PrivateRoute>} />
       <Route path="/departments" element={<PrivateRoute><Departments /></PrivateRoute>} />
+      <Route path="/departments/:departmentId" element={<PrivateRoute><DepartmentDetail /></PrivateRoute>} />
       <Route path="/districts" element={<PrivateRoute><Districts /></PrivateRoute>} />
       <Route path="/budget" element={<PrivateRoute><Budget /></PrivateRoute>} />
       <Route path="/evidence" element={<PrivateRoute><Evidence /></PrivateRoute>} />

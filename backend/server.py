@@ -270,6 +270,66 @@ async def get_departments():
     return clean_docs(await db.departments.find().to_list(100))
 
 
+@api_router.get("/departments/{dept_id}")
+async def get_department_detail(dept_id: str):
+    dept = await db.departments.find_one({"id": dept_id}, {"_id": 0})
+    if not dept:
+        raise HTTPException(404, "Department not found")
+
+    inits = await db.initiatives.find({"lead_department_id": dept_id}, {"_id": 0}).to_list(500)
+    ms = await db.milestones.find({"department_id": dept_id}, {"_id": 0}).to_list(1000)
+    kpis = await db.kpis.find({"department_id": dept_id}, {"_id": 0}).to_list(200)
+    themes = await db.themes.find({"owner_department_id": dept_id}, {"_id": 0}).to_list(20)
+    actions = await db.action_items.find({"owner_department_id": dept_id}, {"_id": 0}).to_list(200)
+    init_ids = [i["id"] for i in inits]
+    risks = []
+    if init_ids:
+        risks = await db.risks.find({"initiative_id": {"$in": init_ids}}, {"_id": 0}).to_list(100)
+    officer = await db.officers.find_one({"department_id": dept_id, "active": True}, {"_id": 0})
+
+    budget_alloc = sum(i.get("budget_estimate", 0) for i in inits)
+    budget_util = sum(i.get("budget_utilized", 0) for i in inits)
+    completion = round(sum(m.get("completion_pct", 0) for m in ms) / max(1, len(ms)), 1)
+    delayed_ms = [m for m in ms if m.get("status") in ("Delayed", "At Risk", "Blocked")]
+    open_risks = [r for r in risks if r.get("status") in ("Open", "Escalated", "Mitigation In Progress")]
+    pending_actions = [a for a in actions if a.get("status") in ("Open", "In Progress", "Overdue")]
+
+    ms_sorted = sorted(
+        ms,
+        key=lambda m: (
+            0 if m.get("status") in ("Delayed", "At Risk", "Blocked") else 1,
+            -(m.get("completion_pct") or 0),
+        ),
+    )
+
+    return {
+        **dept,
+        "initiatives_count": len(inits),
+        "milestones_count": len(ms),
+        "completed_milestones": len([m for m in ms if m.get("status") in ("Completed", "Closed")]),
+        "delayed_milestones_count": len(delayed_ms),
+        "budget_allocated": round(budget_alloc, 2),
+        "budget_utilized": round(budget_util, 2),
+        "budget_utilization_pct": round(budget_util / budget_alloc * 100, 1) if budget_alloc else 0,
+        "completion_pct": completion,
+        "kpi_count": len(kpis),
+        "kpi_green": len([k for k in kpis if k.get("health") == "green"]),
+        "kpi_red": len([k for k in kpis if k.get("health") == "red"]),
+        "open_risks_count": len(open_risks),
+        "pending_actions_count": len(pending_actions),
+        "themes_count": len(themes),
+        "rag": calc_rag(int(completion)),
+        "officer": officer,
+        "themes": themes,
+        "initiatives": inits[:15],
+        "milestones": ms_sorted[:20],
+        "delayed_milestones": delayed_ms[:12],
+        "kpis": kpis[:15],
+        "risks": open_risks[:12],
+        "action_items": pending_actions[:12],
+    }
+
+
 @api_router.get("/districts")
 async def get_districts():
     return clean_docs(await db.districts.find().to_list(100))

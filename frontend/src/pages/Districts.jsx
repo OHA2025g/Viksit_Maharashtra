@@ -109,18 +109,50 @@ export default function Districts() {
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
             <div className="lg:col-span-3">
               <ChartRegion labelKey="a11y.mapDistricts">
-                <DistrictMap districts={filtered} onSelect={setSelected} ariaLabel={t("a11y.mapDistricts")} />
+                <div className="h-[min(42rem,72vh)] min-h-[36rem] rounded-lg overflow-hidden border border-slate-200">
+                  <DistrictMap
+                    compact
+                    variant="districts"
+                    districts={filtered}
+                    selectedDistrictId={selected?.id}
+                    onSelect={setSelected}
+                    ariaLabel={t("a11y.mapDistricts")}
+                  />
+                </div>
               </ChartRegion>
-              <div className="mt-3 flex flex-wrap items-center gap-4 text-[11px] text-slate-600">
-                <span className="font-semibold uppercase tracking-widest">{t("district.legend")}:</span>
-                {["green", "amber", "red", "blue", "grey"].map((r) => (
-                  <span key={r} className="inline-flex items-center gap-1.5">
-                    <span className="w-2.5 h-2.5 rounded-full" style={{ background: RAG_COLORS[r].solid }} />
-                    {RAG_COLORS[r].label}
-                  </span>
-                ))}
-                <span className="text-slate-400">· {t("district.markerSize")}</span>
+              <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+                <div className="flex flex-wrap items-center gap-4 text-[11px] text-slate-600">
+                  <span className="font-semibold uppercase tracking-widest">{t("district.legend")}:</span>
+                  {["green", "amber", "red", "blue", "grey"].map((r) => (
+                    <span key={r} className="inline-flex items-center gap-1.5">
+                      <span
+                        className="relative inline-flex h-3 w-3 items-center justify-center"
+                        aria-hidden
+                      >
+                        <span
+                          className="absolute h-3 w-3 rounded-full opacity-35"
+                          style={{ background: RAG_COLORS[r].solid }}
+                        />
+                        <span
+                          className="h-1.5 w-1.5 rounded-full"
+                          style={{ background: RAG_COLORS[r].solid }}
+                        />
+                      </span>
+                      {RAG_COLORS[r].label}
+                    </span>
+                  ))}
+                  <span className="text-slate-400">· {t("district.markerSize")}</span>
+                </div>
+                <a
+                  href="https://stategisportal.nic.in/stategisportal/Home/Map/27"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-[11px] text-orange-600 hover:underline font-medium"
+                >
+                  {t("assets.gisPortalLink")} ↗
+                </a>
               </div>
+              <p className="text-[10px] text-slate-400 mt-1">{t("assets.mapAttribution")}</p>
             </div>
             <div>
               <div className="bg-white border border-slate-200 rounded-lg p-4 sticky top-20">
@@ -168,7 +200,15 @@ export default function Districts() {
               </THead>
               <tbody>
                 {filtered.map((d) => (
-                  <tr key={d.id} data-testid={`district-${d.id}`} className="border-b border-slate-100 hover:bg-slate-50">
+                  <tr
+                    key={d.id}
+                    data-testid={`district-${d.id}`}
+                    className={`border-b border-slate-100 hover:bg-orange-50/50 cursor-pointer ${selected?.id === d.id ? "bg-orange-50" : ""}`}
+                    onClick={() => {
+                      setSelected(d);
+                      setView("map");
+                    }}
+                  >
                     <Td className="font-medium">{d.name}</Td>
                     <Td className="text-xs text-slate-600">{d.region}</Td>
                     <Td>

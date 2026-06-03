@@ -109,6 +109,31 @@ function FitMaharashtraBounds({ padding = 12, stateGeo, zoomOffset = 0, onBaseli
   return null;
 }
 
+/** Pan to selected district at the same zoom as the default map view. */
+function FocusSelectedDistrict({ selectedDistrictId, positionedDistricts, baselineZoom }) {
+  const map = useMap();
+  const lastFocusId = React.useRef(null);
+
+  useEffect(() => {
+    if (!selectedDistrictId || baselineZoom == null) return;
+    const item = positionedDistricts.find(({ district }) => district.id === selectedDistrictId);
+    if (!item?.position) return;
+
+    const shouldAnimate = lastFocusId.current != null && lastFocusId.current !== selectedDistrictId;
+    lastFocusId.current = selectedDistrictId;
+    map.flyTo(item.position, baselineZoom, {
+      duration: shouldAnimate ? 0.45 : 0,
+      animate: shouldAnimate,
+    });
+  }, [map, selectedDistrictId, positionedDistricts, baselineZoom]);
+
+  useEffect(() => {
+    if (!selectedDistrictId) lastFocusId.current = null;
+  }, [selectedDistrictId]);
+
+  return null;
+}
+
 /** Pan to selected asset at the same zoom as the default asset map view. */
 function FocusSelectedAsset({ selectedAssetId, positionedAssets, baselineZoom }) {
   const map = useMap();
@@ -289,25 +314,103 @@ function AssetPin({ asset, position, selected, onSelect }) {
   );
 }
 
+function DistrictPin({ district, position, selected, onSelect, radiusFn }) {
+  const color = RAG_COLORS[district.rag]?.solid || "#94A3B8";
+  const center = position;
+  if (!center) return null;
+  const baseRadius = radiusFn(district.progress_score ?? 0);
+  const outerRadius = selected ? baseRadius + 6 : baseRadius + 2;
+  const innerRadius = selected ? Math.max(baseRadius * 0.45, 6) : Math.max(baseRadius * 0.4, 5);
+
+  const handlers = {
+    click: (e) => {
+      e.originalEvent?.stopPropagation?.();
+      onSelect && onSelect(district);
+    },
+  };
+
+  return (
+    <>
+      <CircleMarker
+        center={center}
+        radius={outerRadius}
+        pathOptions={{
+          color,
+          fillColor: color,
+          fillOpacity: 0.28,
+          weight: 1,
+          opacity: 0.55,
+        }}
+        eventHandlers={handlers}
+      />
+      <CircleMarker
+        center={center}
+        radius={innerRadius}
+        pathOptions={{
+          color: selected ? "#EA580C" : color,
+          fillColor: selected ? "#FB923C" : color,
+          fillOpacity: 0.95,
+          weight: selected ? 3 : 2,
+          opacity: 1,
+        }}
+        eventHandlers={handlers}
+      >
+        <Tooltip direction="top" offset={[0, -4]} opacity={0.95}>
+          <div className="text-xs max-w-[200px]">
+            <div className="font-bold">{district.name}</div>
+            <div>
+              {district.region} · {district.progress_score}%
+            </div>
+          </div>
+        </Tooltip>
+        <Popup>
+          <div className="text-xs min-w-[160px]">
+            <div className="font-bold">{district.name}</div>
+            <div>
+              {district.region} · {district.progress_score}% progress
+            </div>
+            <div className="mt-1">RAG: {district.rag}</div>
+          </div>
+        </Popup>
+      </CircleMarker>
+    </>
+  );
+}
+
 export default function DistrictMap({
   districts,
   assets = [],
   onSelect,
   onAssetSelect,
   selectedAssetId,
+  selectedDistrictId,
   compact = false,
   variant = "districts",
   ariaLabel,
 }) {
+  const usesBoundaryMap = variant === "assets" || variant === "districts";
   const isAssetMap = variant === "assets";
   const height = compact ? "100%" : 560;
   const [boundaryData, setBoundaryData] = useState(boundaryCache);
   const [boundaryError, setBoundaryError] = useState(null);
-  const [assetMapBaselineZoom, setAssetMapBaselineZoom] = useState(null);
+  const [mapBaselineZoom, setMapBaselineZoom] = useState(null);
 
   const centroidMap = useMemo(
     () => (boundaryData?.districts ? buildDistrictCentroidMap(boundaryData.districts) : {}),
     [boundaryData],
+  );
+
+  const positionedDistricts = useMemo(
+    () =>
+      districts
+        .map((d) => {
+          const position =
+            centroidMap[d.name] ||
+            (Number.isFinite(d.geo_lat) && Number.isFinite(d.geo_lon) ? [d.geo_lat, d.geo_lon] : null);
+          return position ? { district: d, position } : null;
+        })
+        .filter(Boolean),
+    [districts, centroidMap],
   );
 
   const positionedAssets = useMemo(
@@ -322,7 +425,7 @@ export default function DistrictMap({
   );
 
   useEffect(() => {
-    if (!isAssetMap || boundaryData) return undefined;
+    if (!usesBoundaryMap || boundaryData) return undefined;
     let active = true;
     loadBoundaryData()
       .then((data) => {
@@ -334,55 +437,74 @@ export default function DistrictMap({
     return () => {
       active = false;
     };
-  }, [isAssetMap, boundaryData]);
+  }, [usesBoundaryMap, boundaryData]);
 
   const radius = (score) => 8 + (score / 100) * 14;
 
   return (
     <div
-      className={`rounded-lg overflow-hidden border border-slate-200 ${compact ? `h-full ${isAssetMap ? "min-h-[32rem]" : "min-h-[20rem]"}` : ""} ${isAssetMap ? "mh-map-shell" : ""}`}
+      className={`rounded-lg overflow-hidden border border-slate-200 ${compact ? `h-full ${usesBoundaryMap ? "min-h-[32rem]" : "min-h-[20rem]"}` : ""} ${usesBoundaryMap ? "mh-map-shell" : ""}`}
       style={compact ? undefined : { height }}
       role="application"
       aria-label={ariaLabel || "Interactive map of Maharashtra districts and geo-tagged assets"}
     >
       <MapContainer
         center={MAHARASHTRA_CENTER}
-        zoom={isAssetMap ? 8 : 6}
+        zoom={usesBoundaryMap ? 8 : 6}
         minZoom={6}
         maxBounds={MAHARASHTRA_BOUNDS}
         maxBoundsViscosity={0.85}
-        style={{ height: "100%", width: "100%", background: isAssetMap ? "#ffffff" : undefined }}
-        scrollWheelZoom={isAssetMap}
+        style={{ height: "100%", width: "100%", background: usesBoundaryMap ? "#ffffff" : undefined }}
+        scrollWheelZoom={usesBoundaryMap}
         zoomControl
         data-testid="district-leaflet-map"
       >
         <MapInvalidateSize />
         <FitMaharashtraBounds
-          padding={isAssetMap ? 28 : 16}
-          stateGeo={isAssetMap ? boundaryData?.state : null}
-          zoomOffset={isAssetMap ? 1 : 0}
-          onBaselineZoom={isAssetMap ? setAssetMapBaselineZoom : undefined}
+          padding={usesBoundaryMap ? 28 : 16}
+          stateGeo={usesBoundaryMap ? boundaryData?.state : null}
+          zoomOffset={usesBoundaryMap ? 1 : 0}
+          onBaselineZoom={usesBoundaryMap ? setMapBaselineZoom : undefined}
         />
         {isAssetMap && (
           <FocusSelectedAsset
             selectedAssetId={selectedAssetId}
             positionedAssets={positionedAssets}
-            baselineZoom={assetMapBaselineZoom}
+            baselineZoom={mapBaselineZoom}
           />
         )}
-        {!isAssetMap && (
+        {variant === "districts" && usesBoundaryMap && (
+          <FocusSelectedDistrict
+            selectedDistrictId={selectedDistrictId}
+            positionedDistricts={positionedDistricts}
+            baselineZoom={mapBaselineZoom}
+          />
+        )}
+        {!usesBoundaryMap && (
           <TileLayer
             attribution={OSM_ATTRIBUTION}
             url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
           />
         )}
-        {isAssetMap && boundaryData && (
+        {usesBoundaryMap && boundaryData && (
           <MaharashtraBoundaries
             districtsGeo={boundaryData.districts}
             stateGeo={boundaryData.state}
           />
         )}
-        {!isAssetMap &&
+        {usesBoundaryMap &&
+          variant === "districts" &&
+          positionedDistricts.map(({ district: d, position }) => (
+            <DistrictPin
+              key={d.id}
+              district={d}
+              position={position}
+              selected={selectedDistrictId === d.id}
+              onSelect={onSelect}
+              radiusFn={radius}
+            />
+          ))}
+        {!usesBoundaryMap &&
           districts.map((d) => {
             const color = RAG_COLORS[d.rag]?.solid || "#94A3B8";
             return (
@@ -447,9 +569,9 @@ export default function DistrictMap({
             );
           })}
       </MapContainer>
-      {isAssetMap && boundaryError && (
+      {usesBoundaryMap && boundaryError && (
         <p className="absolute bottom-2 left-2 right-2 text-[10px] text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1">
-          District outline unavailable offline. Asset pins still shown.
+          District outline unavailable offline. Pins still shown.
         </p>
       )}
     </div>
